@@ -70,26 +70,57 @@ static inline int clamp(int v, int lo, int hi) {
     return v < lo ? lo : (v > hi ? hi : v);
 }
 
+static inline int min(int a, int b) { return a < b ? a : b; }
+static inline int max(int a, int b) { return a > b ? a : b; }
+
 void niblack(uint8_t in[HEIGHT][WIDTH], uint8_t out[HEIGHT][WIDTH]) {
+    double integral[HEIGHT+1][WIDTH+1];
+    double integral_sq[HEIGHT+1][WIDTH+1];
+
+    for (int i = 0; i <= HEIGHT; i++) {
+        integral[i][0] = 0;
+        integral_sq[i][0] = 0;
+    }
+    for (int j = 0; j <= WIDTH; j++) {
+        integral[0][j] = 0;
+        integral_sq[0][j] = 0;
+    }
+
+    for (int y = 1; y <= HEIGHT; y++) {
+        for (int x = 1; x <= WIDTH; x++) {
+            double val = in[y-1][x-1];
+            integral[y][x] = val + integral[y-1][x] + integral[y][x-1] - integral[y-1][x-1];
+            integral_sq[y][x] = val*val + integral_sq[y-1][x] + integral_sq[y][x-1] - integral_sq[y-1][x-1];
+        }
+    }
+
     int w = WINDOW_SIZE / 2;
-    int N = WINDOW_SIZE * WINDOW_SIZE;
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            double sum = 0, sum2 = 0;
-            for (int dy = -w; dy <= w; dy++) {
-                for (int dx = -w; dx <= w; dx++) {
-                    int yy = clamp(y + dy, 0, HEIGHT - 1);
-                    int xx = clamp(x + dx, 0, WIDTH - 1);
-                    double v = in[yy][xx];
-                    sum += v;
-                    sum2 += v * v;
-                }
-            }
-            double mean = sum / N;
-            double var = (sum2 - N * mean * mean) / (N - 1);
-            double std = sqrt(var);
+            int x1 = max(x - w, 0);
+            int y1 = max(y - w, 0);
+            int x2 = min(x + w, WIDTH - 1);
+            int y2 = min(y + w, HEIGHT - 1);
+
+            int area = (y2 - y1 + 1) * (x2 - x1 + 1);
+
+            int _x1 = x1;
+            int _y1 = y1;
+            int _x2 = x2 + 1;
+            int _y2 = y2 + 1;
+
+            double sum = integral[_y2][_x2] - integral[_y1][_x2] - integral[_y2][_x1] + integral[_y1][_x1];
+            double sum_sq = integral_sq[_y2][_x2] - integral_sq[_y1][_x2] - integral_sq[_y2][_x1] + integral_sq[_y1][_x1];
+
+            double mean = sum / area;
+            double variance = (sum_sq - (sum*sum)/area) / (area - 1);
+
+            if (variance < 0) variance = 0;
+            
+            double std = sqrt(variance);
             double T = mean + K * std;
-            out[y][x] = (in[y][x] < T ? 0 : 255);
+
+            out[y][x] = (in[y][x] < T) ? 0 : 255;
         }
     }
 }

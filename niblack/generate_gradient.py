@@ -11,10 +11,11 @@ def generate_gradient_pgm(filename="gradient.pgm"):
         for y in range(height):
             row = []
             for x in range(width):
-                v = int(x * (maxv / (width - 1)))
-                row.append(str(v))
+                v = round(x * (maxv / (width - 1)))
+                row.append(str(int(v)))
             f.write(" ".join(row) + "\n")
+
+    print(f"Gerado {filename} com {width}×{height} pixels.")
 
 if __name__ == "__main__":
     generate_gradient_pgm()
-    print("Gerado gradient.pgm com 89×89 pixels.")

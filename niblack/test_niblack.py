@@ -11,7 +11,7 @@ def read_pgm(fn):
         data = np.loadtxt(f, dtype=int)
     return data.reshape((h,w))
 
-in_img  = read_pgm('gradient.pgm')
+in_img  = read_pgm('test_image.pgm')
 out_img = read_pgm('out.pgm')
 
 x,y = 44,44
