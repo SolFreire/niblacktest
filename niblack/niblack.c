@@ -7,8 +7,8 @@
 
 #define WIDTH  89
 #define HEIGHT 89
-#define WINDOW_SIZE 15   
-#define K -0.2         
+#define WINDOW_SIZE 51   
+#define K -0.1         
 
 void read_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
     FILE* f = fopen(filename, "r");
