@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(8,4))
     plt.subplot(1,2,1)
-    plt.title('Gradient (89×89)')
+    plt.title('Image Input')
     plt.imshow(in_img, cmap='gray', vmin=0, vmax=255)
     plt.axis('off')
 
