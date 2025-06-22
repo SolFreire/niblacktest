@@ -5,10 +5,17 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#define WIDTH  89
-#define HEIGHT 89
-#define WINDOW_SIZE 51   
-#define K -0.1         
+#define WIDTH       89
+#define HEIGHT      89
+#define WINDOW_SIZE 51
+#define K          -0.1   
+
+/* Reflete coordenada x no intervalo [0..N-1] como faz o scipy.ndimage.uniform_filter(mode='reflect') */
+static inline int reflect(int x, int N) {
+    if (x < 0)       return -x;
+    else if (x >= N) return 2*N - 2 - x;
+    else             return x;
+}
 
 void read_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
     FILE* f = fopen(filename, "r");
@@ -16,11 +23,10 @@ void read_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
     char magic[3];
     int w, h, maxv;
     if (fscanf(f, "%2s", magic) != 1 || strcmp(magic, "P2") != 0) {
-        fprintf(stderr,"Arquivo não está em P2\n"); exit(1);
+        fprintf(stderr, "Arquivo não está em P2\n"); exit(1);
     }
     int ch;
-    while (1) {
-        ch = fgetc(f);
+    while ((ch = fgetc(f)) != EOF) {
         if (ch == '#') {
             while ((ch = fgetc(f)) != '\n' && ch != EOF);
         } else if (isspace(ch)) {
@@ -30,21 +36,18 @@ void read_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
             break;
         }
     }
-    if (fscanf(f, "%d %d", &w, &h) != 2) {
-        fprintf(stderr,"Falha ao ler dimensões\n"); exit(1);
-    }
-    if (fscanf(f, "%d", &maxv) != 1) {
-        fprintf(stderr,"Falha ao ler valor máximo\n"); exit(1);
+    if (fscanf(f, "%d %d", &w, &h) != 2 || fscanf(f, "%d", &maxv) != 1) {
+        fprintf(stderr, "Erro lendo cabeçalho\n"); exit(1);
     }
     if (w != WIDTH || h != HEIGHT || maxv != 255) {
-        fprintf(stderr, "PGM não atende dimensões esperadas: %dx%d, maxv=%d\n", w, h, maxv);
+        fprintf(stderr, "Dimensões inesperadas: %dx%d, maxv=%d\n", w, h, maxv);
         exit(1);
     }
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             int v;
             if (fscanf(f, "%d", &v) != 1) {
-                fprintf(stderr,"Erro lendo pixel [%d,%d]\n", y, x);
+                fprintf(stderr, "Erro lendo pixel [%d,%d]\n", y, x);
                 exit(1);
             }
             img[y][x] = (uint8_t)v;
@@ -56,7 +59,7 @@ void read_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
 void write_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
     FILE* f = fopen(filename, "w");
     if (!f) { perror("fopen"); exit(1); }
-    fprintf(f, "P2\n# Niblack binarization\n%d %d\n255\n", WIDTH, HEIGHT);
+    fprintf(f, "P2\n# Niblack (match skimage)\n%d %d\n255\n", WIDTH, HEIGHT);
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             fprintf(f, "%d ", img[y][x]);
@@ -66,61 +69,31 @@ void write_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
     fclose(f);
 }
 
-static inline int clamp(int v, int lo, int hi) {
-    return v < lo ? lo : (v > hi ? hi : v);
-}
-
-static inline int min(int a, int b) { return a < b ? a : b; }
-static inline int max(int a, int b) { return a > b ? a : b; }
-
-void niblack(uint8_t in[HEIGHT][WIDTH], uint8_t out[HEIGHT][WIDTH]) {
-    double integral[HEIGHT+1][WIDTH+1];
-    double integral_sq[HEIGHT+1][WIDTH+1];
-
-    for (int i = 0; i <= HEIGHT; i++) {
-        integral[i][0] = 0;
-        integral_sq[i][0] = 0;
-    }
-    for (int j = 0; j <= WIDTH; j++) {
-        integral[0][j] = 0;
-        integral_sq[0][j] = 0;
-    }
-
-    for (int y = 1; y <= HEIGHT; y++) {
-        for (int x = 1; x <= WIDTH; x++) {
-            double val = in[y-1][x-1];
-            integral[y][x] = val + integral[y-1][x] + integral[y][x-1] - integral[y-1][x-1];
-            integral_sq[y][x] = val*val + integral_sq[y-1][x] + integral_sq[y][x-1] - integral_sq[y-1][x-1];
-        }
-    }
-
+void niblack_skimage(uint8_t in[HEIGHT][WIDTH], uint8_t out[HEIGHT][WIDTH]) {
     int w = WINDOW_SIZE / 2;
+    int area = WINDOW_SIZE * WINDOW_SIZE;
+
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            int x1 = max(x - w, 0);
-            int y1 = max(y - w, 0);
-            int x2 = min(x + w, WIDTH - 1);
-            int y2 = min(y + w, HEIGHT - 1);
-
-            int area = (y2 - y1 + 1) * (x2 - x1 + 1);
-
-            int _x1 = x1;
-            int _y1 = y1;
-            int _x2 = x2 + 1;
-            int _y2 = y2 + 1;
-
-            double sum = integral[_y2][_x2] - integral[_y1][_x2] - integral[_y2][_x1] + integral[_y1][_x1];
-            double sum_sq = integral_sq[_y2][_x2] - integral_sq[_y1][_x2] - integral_sq[_y2][_x1] + integral_sq[_y1][_x1];
-
+            double sum = 0.0, sum_sq = 0.0;
+            /* percorre toda janela WINDOW_SIZE x WINDOW_SIZE com reflect */
+            for (int dy = -w; dy <= w; dy++) {
+                int ry = reflect(y + dy, HEIGHT);
+                for (int dx = -w; dx <= w; dx++) {
+                    int rx = reflect(x + dx, WIDTH);
+                    double v = in[ry][rx] / 255.0;
+                    sum    += v;
+                    sum_sq += v * v;
+                }
+            }
             double mean = sum / area;
-            double variance = (sum_sq - (sum*sum)/area) / (area - 1);
-
-            if (variance < 0) variance = 0;
-            
-            double std = sqrt(variance);
-            double T = mean + K * std;
-
-            out[y][x] = (in[y][x] < T) ? 0 : 255;
+            double var  = sum_sq / area - mean * mean;
+            if (var < 0) var = 0;
+            double std  = sqrt(var);
+            double T    = mean + K * std;
+            /* compara na escala [0,1] e depois dessatura de volta */
+            double iv = in[y][x] / 255.0;
+            out[y][x] = (iv > T) ? 255 : 0;
         }
     }
 }
@@ -132,7 +105,7 @@ int main(int argc, char** argv) {
     }
     static uint8_t img_in[HEIGHT][WIDTH], img_out[HEIGHT][WIDTH];
     read_pgm(argv[1], img_in);
-    niblack(img_in, img_out);
+    niblack_skimage(img_in, img_out);
     write_pgm(argv[2], img_out);
     printf("Pronto: %s -> %s\n", argv[1], argv[2]);
     return 0;
