@@ -18,15 +18,21 @@ def read_pgm(fn):
 if __name__ == "__main__":
     in_img  = read_pgm('test_input.pgm')
     out_img = read_pgm('out_c.pgm')
+    out_py = read_pgm('out_python.pgm')
 
     plt.figure(figsize=(8,4))
-    plt.subplot(1,2,1)
+    plt.subplot(1,3,1)
     plt.title('Image Input')
     plt.imshow(in_img, cmap='gray', vmin=0, vmax=255)
     plt.axis('off')
 
-    plt.subplot(1,2,2)
-    plt.title('Niblack Output')
+    plt.subplot(1,3,2)
+    plt.title('Niblack Output C')
+    plt.imshow(out_img, cmap='gray', vmin=0, vmax=255)
+    plt.axis('off')
+
+    plt.subplot(1,3,3)
+    plt.title('Niblack Output Scikt')
     plt.imshow(out_img, cmap='gray', vmin=0, vmax=255)
     plt.axis('off')
 

@@ -7,15 +7,11 @@
 
 #define WIDTH       89
 #define HEIGHT      89
-#define WINDOW_SIZE 51
-#define K          -0.1   
+#define WINDOW_SIZE 55
+#define K          -0.1 
 
 /* Reflete coordenada x no intervalo [0..N-1] como faz o scipy.ndimage.uniform_filter(mode='reflect') */
-static inline int reflect(int x, int N) {
-    if (x < 0)       return -x;
-    else if (x >= N) return 2*N - 2 - x;
-    else             return x;
-}
+
 
 void read_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
     FILE* f = fopen(filename, "r");
@@ -69,31 +65,35 @@ void write_pgm(const char* filename, uint8_t img[HEIGHT][WIDTH]) {
     fclose(f);
 }
 
-void niblack_skimage(uint8_t in[HEIGHT][WIDTH], uint8_t out[HEIGHT][WIDTH]) {
+void niblack(uint8_t in[HEIGHT][WIDTH], uint8_t out[HEIGHT][WIDTH]) {
     int w = WINDOW_SIZE / 2;
-    int area = WINDOW_SIZE * WINDOW_SIZE;
 
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            double sum = 0.0, sum_sq = 0.0;
-            /* percorre toda janela WINDOW_SIZE x WINDOW_SIZE com reflect */
-            for (int dy = -w; dy <= w; dy++) {
-                int ry = reflect(y + dy, HEIGHT);
-                for (int dx = -w; dx <= w; dx++) {
-                    int rx = reflect(x + dx, WIDTH);
-                    double v = in[ry][rx] / 255.0;
-                    sum    += v;
-                    sum_sq += v * v;
+            int x1 = (x - w < 0) ? 0 : x - w;
+            int y1 = (y - w < 0) ? 0 : y - w;
+            int x2 = (x + w >= WIDTH) ? WIDTH - 1 : x + w;
+            int y2 = (y + w >= HEIGHT) ? HEIGHT - 1 : y + w;
+            int area = (y2 - y1 + 1) * (x2 - x1 + 1);
+
+            float sum = 0;
+            float sum_sq = 0;
+
+            for (int j = y1; j <= y2; j++) {
+                for (int i = x1; i <= x2; i++) {
+                    float val = in[j][i];
+                    sum += val;
+                    sum_sq += val * val;
                 }
             }
-            double mean = sum / area;
-            double var  = sum_sq / area - mean * mean;
-            if (var < 0) var = 0;
-            double std  = sqrt(var);
-            double T    = mean + K * std;
-            /* compara na escala [0,1] e depois dessatura de volta */
-            double iv = in[y][x] / 255.0;
-            out[y][x] = (iv > T) ? 255 : 0;
+
+            float mean = sum / area;
+            float variance = (sum_sq - (sum * sum) / area) / (area - 1);
+            if (variance < 0) variance = 0;
+            float std = sqrtf(variance);
+            float T = mean + K * std;
+
+            out[y][x] = (in[y][x] < T) ? 0 : 255;
         }
     }
 }
@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     }
     static uint8_t img_in[HEIGHT][WIDTH], img_out[HEIGHT][WIDTH];
     read_pgm(argv[1], img_in);
-    niblack_skimage(img_in, img_out);
+    niblack(img_in, img_out);
     write_pgm(argv[2], img_out);
     printf("Pronto: %s -> %s\n", argv[1], argv[2]);
     return 0;
