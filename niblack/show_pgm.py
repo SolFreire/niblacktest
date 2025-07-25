@@ -19,7 +19,7 @@ def read_pgm(fn):
 
 #código principal para comparar visualmente as saídas
 if __name__ == "__main__":
-    in_img  = read_pgm('test_input.pgm')   #imagem original
+    in_img  = read_pgm('test_image.pgm')   #imagem original
     out_c   = read_pgm('out_c.pgm')                           #saída em C
     out_py  = read_pgm('out_python_sk.pgm')                      #saída com Scikit-image
     out_cv  = read_pgm('out_python_cv.pgm')                      #saída com OpenCV
