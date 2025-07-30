@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <time.h>
 
 /*Dimensões da imagem escolhida pelo professor*/
 #define WIDTH       89
@@ -139,15 +140,31 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Declaração das matrizes de entrada e saída
     static uint8_t img_in[HEIGHT][WIDTH], img_out[HEIGHT][WIDTH];
 
-    // Leitura, processamento e escrita
+    /* Carrega a imagem (I/O) */
     read_pgm(argv[1], img_in);
-    niblack(img_in, img_out);
+
+    /* Repete N vezes e mede só o niblack */
+    const int N = 10;
+    struct timespec t0, t1;
+    double total = 0.0;
+
+    for (int i = 0; i < N; i++) {
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+        niblack(img_in, img_out);
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+
+        double elapsed = (t1.tv_sec - t0.tv_sec)
+                       + (t1.tv_nsec - t0.tv_nsec) * 1e-9;
+        total += elapsed;
+    }
+
+    fprintf(stderr, "Tempo médio niblack (%d execuções): %.6f s\n",
+            N, total / N);
+
+    /* Grava a imagem resultante (I/O) */
     write_pgm(argv[2], img_out);
 
-    // Confirmação da execução
-    printf("Pronto: %s -> %s\n", argv[1], argv[2]);
     return 0;
 }
