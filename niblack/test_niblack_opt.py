@@ -29,6 +29,6 @@ if n_diff > 0:
     coords = np.argwhere(diff)
     print("Exemplos de diferenças:")
     for y, x in coords[:]:  
-        print(f" Pixel[{y},{x}]: sk={img_cm[y,x]} vs c={img_c[y,x]}")
+        print(f" Pixel[{y},{x}]: cm={img_cm[y,x]} vs c={img_c[y,x]}")
 
 print(f"Diferenças: {n_diff}/{total} — Acurácia: {acc:.2f}%")

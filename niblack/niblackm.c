@@ -97,25 +97,50 @@ void niblackm(uint8_t in[HEIGHT][WIDTH], uint8_t out[HEIGHT][WIDTH]) {
     float col_sum[WIDTH];
     float col_sq_sum[WIDTH];
 
+    for(int x = 0; x < WIDTH; x++){
+        for(int j = 0; j <= w && j < HEIGHT; j++){
+            float val = in[j][x];
+            col_sum[x] += val;
+            col_sq_sum[x] += val * val;
+        }
+    }
+
+    for (int y=0; y< HEIGHT; y++){
+        int y_out = y - w -1;
+        int y_in =  y + w;
+
+        for(int x=0; x < WIDTH; x++){
+            if(y_out >= 0){
+                float val_out = in[y_out][x];
+                col_sum[x] -= val_out;
+                col_sq_sum[x] -= val_out * val_out;
+            }
+            if(y_in < HEIGHT){
+                float val_in = in[y_out][x];
+                col_sum[x] += val_in;
+                col_sq_sum[x] += val_in * val_in;
+            }
+        }
+    }
     for (int y = 0; y < HEIGHT; y++) {
+        
         for (int x = 0; x < WIDTH; x++) {
             // Define limites da janela local, respeitando bordas
             int x1 = (x - w < 0) ? 0 : x - w;
             int y1 = (y - w < 0) ? 0 : y - w;
             int x2 = (x + w >= WIDTH) ? WIDTH - 1 : x + w;
             int y2 = (y + w >= HEIGHT) ? HEIGHT - 1 : y + w;
+            int height_win = y2 - y1 + 1;
+            int width_win = x2 - x1 + 1;
             int area = (y2 - y1 + 1) * (x2 - x1 + 1);
 
             float sum = 0;
             float sum_sq = 0;
 
             // Calcula soma e soma dos quadrados na janela
-            for (int j = y1; j <= y2; j++) {
-                for (int i = x1; i <= x2; i++) {
-                    float val = in[j][i];
-                    sum += val;
-                    sum_sq += val * val;
-                }
+            for (int i = x1; i <= x2; i++) {
+                sum += col_sum[i];
+                sum_sq += col_sq_sum[i];
             }
 
             // Cálculo da média e do desvio padrão local
